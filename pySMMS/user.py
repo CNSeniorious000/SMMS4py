@@ -3,14 +3,16 @@ from orjson import loads
 from functools import cached_property
 from cachetools.func import ttl_cache
 
+TTL = 5
+
 
 # noinspection PyPropertyAccess, PyAttributeOutsideInit
 class User:
-    def request_token(self, username="", password="") -> str:
+    @classmethod
+    def request_token(cls, username, password) -> str:
         response = loads(post(
             "https://sm.ms/api/v2/token",
-            {"username": username or self.username,
-             "password": password or self.password}
+            {"username": username, "password": password}
         ).content)
         assert all((
             response["success"],
@@ -19,10 +21,12 @@ class User:
         )), "not successful"
         return response["data"]["token"]
 
-    def request_profile(self, token="") -> dict:
+    @classmethod
+    @ttl_cache(TTL)
+    def request_profile(cls, token) -> dict:
         response = loads(post(
             "https://sm.ms/api/v2/profile",
-            headers={"Authorization": token or self.token}
+            headers={"Authorization": token}
         ).content)
         assert all((
             response["success"],
@@ -30,9 +34,6 @@ class User:
             response["message"] == "Get user profile success."
         ))
         return response["data"]
-
-    def attempt(self, username="", password=""):
-        self.token = self.request_token(username or self.username, password or self.password)
 
     @classmethod
     def from_token(cls, token) -> "User":
@@ -47,6 +48,9 @@ class User:
         user.password = password
         return user
 
+    def attempt(self, username="", password=""):
+        self.token = self.request_token(username or self.username, password or self.password)
+
     @cached_property
     def username(self) -> str:
         return input("username/email: ")
@@ -58,8 +62,24 @@ class User:
 
     @cached_property
     def token(self) -> str:
-        return self.request_token()
+        return self.request_token(self.username, self.password)
 
-    @cached_property
+    @property
     def profile(self) -> dict:
-        return self.request_profile()
+        return self.request_profile(self.token)
+
+    @property
+    def disk_usage(self) -> str:
+        return self.profile["disk_usage"]
+
+    @property
+    def disk_limit(self) -> str:
+        return self.profile["disk_limit"]
+
+    @property
+    def disk_usage_raw(self):
+        return self.profile["disk_usage_raw"]
+
+    @property
+    def disk_limit_raw(self):
+        return self.profile["disk_limit_raw"]
