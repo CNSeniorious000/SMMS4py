@@ -16,3 +16,9 @@ def get_token(username, password):
     assert response["code"] == "success"
     assert response["message"] == "Get API token success."
     return response["data"]["token"]
+
+
+def get_profile(token):
+    return loads(post(
+        "https://sm.ms/api/v2/profile", headers={"Authorization": token}
+    ).content)
