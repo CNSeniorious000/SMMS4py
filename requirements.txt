@@ -1,0 +1,4 @@
+requests
+orjson
+cachetools
+setuptools
