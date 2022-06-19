@@ -31,9 +31,9 @@ def delete_image(token, hash):
     ).content)
 
 
-def upload_image(token, file):
+def upload_image(token, filename, file=None):
     return loads(post(
         "https://sm.ms/api/v2/upload",
-        {"smfile": file},
+        files={"smfile": (filename, file or open(filename, "rb"))},
         headers={"Authorization": token}
     ).content)
