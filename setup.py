@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='SM.MS',
+    name='smms',
     version='0.1.0',
     packages=['pySMMS'],
     url='https://github.com/CNSeniorious000/SMMS4py',
