@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
     name='smms',
-    version='0.1.0',
-    packages=['pySMMS'],
+    version='0.1.1',
+    packages=['smms'],
     url='https://github.com/CNSeniorious000/SMMS4py',
     license='MIT License',
     author='MuspiMerol',
