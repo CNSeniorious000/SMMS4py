@@ -7,7 +7,7 @@ TTL = 5
 
 
 # noinspection PyPropertyAccess, PyAttributeOutsideInit
-class User:
+class BaseUser:
     @classmethod
     def request_token(cls, username, password) -> str:
         response = loads(post(
