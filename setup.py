@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='smms',
-    version='0.1.2',
+    version='0.1.3',
     packages=['smms'],
     url='https://github.com/CNSeniorious000/SMMS4py',
     license='MIT License',
@@ -11,5 +11,5 @@ setup(
     description='unofficial python SDK for SM.MS',
     long_description=open("readme.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    install_requires=open("requirements.txt", encoding="utf-8").read()
+    install_requires=["requests", "orjson", "cachetools"]
 )
