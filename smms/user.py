@@ -1,85 +1,117 @@
-from requests import post
 from orjson import loads
+from httpx import Client
 from functools import cached_property
-from cachetools.func import ttl_cache
+from pydantic import BaseModel
+from pathlib import Path
 
-TTL = 5
+
+class UserProfile(BaseModel):
+    username: str
+    email: str
+    role: str
+    group_expire: str
+    email_verified: bool
+    disk_usage: str
+    disk_usage_raw: int
+    disk_limit: str
+    disk_limit_raw: int
+
+    __name__ = "User"
 
 
-# noinspection PyPropertyAccess, PyAttributeOutsideInit
-class BaseUser:
-    @classmethod
-    def request_token(cls, username, password) -> str:
-        response = loads(post(
-            "https://sm.ms/api/v2/token",
-            {"username": username, "password": password}
+class ImageUploaded(BaseModel):
+    width: int
+    height: int
+    filename: str
+    storename: str
+    size: int
+    path: str
+    hash: str
+    url: str
+    delete: str
+    page: str
+
+    def __repr__(self):
+        return f"Image< {self.width}x{self.height} {self.hash} - {self.filename} >"
+
+
+class UploadHistoryItem(ImageUploaded):
+    created_at: str
+
+    def __repr__(self):
+        return f"Image< {self.width}x{self.height} {self.created_at} {self.hash} - {self.filename} >"
+
+
+class User:
+    def __init__(self, token: str = None, username: str = None, email: str = None, password: str = None):
+        self._token = token
+        self._username = username
+        self._email = email
+        self._password = password
+
+    @cached_property
+    def http_client(self):
+        return self.get_http_client()
+
+    def get_http_client(self):
+        return Client(
+            http2=True,
+            base_url="https://smms.app/api/v2/",
+            headers={"Authorization": f"Basic {self.token}"}
+        )
+
+    @cached_property
+    def token(self):
+        return self._token or self.fetch_token()
+
+    def fetch_token(self) -> str:
+        res = loads(self.http_client.post(
+            "/token", data={"username": self._username or self._email, "password": self._password}
         ).content)
-        assert all((
-            response["success"],
-            response["code"] == "success",
-            response["message"] == "Get API token success."
-        )), "not successful"
-        return response["data"]["token"]
-
-    @classmethod
-    @ttl_cache(TTL)
-    def request_profile(cls, token) -> dict:
-        response = loads(post(
-            "https://sm.ms/api/v2/profile",
-            headers={"Authorization": token}
-        ).content)
-        assert all((
-            response["success"],
-            response["code"] == "success",
-            response["message"] == "Get user profile success."
-        ))
-        return response["data"]
-
-    @classmethod
-    def from_token(cls, token) -> "User":
-        user = cls()
-        user.token = token
-        return user
-
-    @classmethod
-    def from_login(cls, username, password) -> "User":
-        user = cls()
-        user.username = username
-        user.password = password
-        return user
-
-    def attempt(self, username="", password=""):
-        self.token = self.request_token(username or self.username, password or self.password)
-
-    @cached_property
-    def username(self) -> str:
-        return input("username/email: ")
-
-    @cached_property
-    def password(self) -> str:
-        from getpass import getpass
-        return getpass("password: ")
-
-    @cached_property
-    def token(self) -> str:
-        return self.request_token(self.username, self.password)
+        try:
+            return res["data"]["token"]
+        except KeyError as err:
+            raise ValueError(res) from err
 
     @property
-    def profile(self) -> dict:
-        return self.request_profile(self.token)
+    def user_profile(self) -> UserProfile:
+        res = loads(self.http_client.post("/profile").content)
+        try:
+            return UserProfile(**res["data"])
+        except KeyError as err:
+            raise ValueError(res) from err
+
+    def fetch_upload_history(self, page: int) -> list[UploadHistoryItem]:
+        res = loads(self.http_client.get(f"/upload_history?{page=}").content)
+        try:
+            return [UploadHistoryItem(**item) for item in res["data"]]
+        except KeyError as err:
+            raise ValueError(res) from err
 
     @property
-    def disk_usage(self) -> str:
-        return self.profile["disk_usage"]
+    def history(self) -> list[UploadHistoryItem]:
+        results = result = self.fetch_upload_history(0)
+        page = 0
+        while len(result) == 100:
+            page += 1
+            result = self.fetch_upload_history(page)
+            results.extend(result)
 
-    @property
-    def disk_limit(self) -> str:
-        return self.profile["disk_limit"]
+        return results
 
-    @property
-    def disk_usage_raw(self):
-        return self.profile["disk_usage_raw"]
+    def upload(self, filename: str, file, media_type: str) -> ImageUploaded:
+        response = self.http_client.post("/upload", files={"smfile": (filename, file, media_type)})
+        print(response.headers)
 
-    @property
-    def disk_limit_raw(self):
-        return self.profile["disk_limit_raw"]
+        res = loads(response.content)
+        try:
+            return ImageUploaded(**res["data"])
+        except KeyError as err:
+            raise ValueError(res) from err
+
+    def upload_file(self, path: str) -> ImageUploaded:
+        filename = Path(path).name
+        return self.upload(Path(path).name, open(path, "rb"), filename.split(".")[-1])
+
+    def delete(self, hash: str):
+        return loads(self.http_client.get(f"/delete/{hash}").content)
