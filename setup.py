@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='smms',
-    version='0.2.0',
+    version='0.2.2',
     packages=['smms'],
     url='https://github.com/CNSeniorious000/SMMS4py',
     license='MIT License',

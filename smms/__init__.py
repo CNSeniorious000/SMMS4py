@@ -1,5 +1,5 @@
-__version__ = "0.2.0"
+__version__ = "0.2.2"
 
-from .user import User
+from .user import User, AsyncUser
 
-__all__ = ["User"]
+__all__ = ["User", "AsyncUser", "__version__"]
